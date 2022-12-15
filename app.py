@@ -28,7 +28,7 @@ def register():
     password = request.args.get("password")
 
     users = db.users
-    user = users.find_one({"_id": username})
+    user = users.find_one({"username": username})
 
     if user is not None:
         return "User already exists", 409
@@ -37,10 +37,9 @@ def register():
     password = password.encode("utf-8")
     hash = bcrypt.hashpw(password, salt)
 
-    id = users.find().sort("_id", -1).limit(1)
+    id = users.find().sort("predictableID", -1).limit(1)
+    id = id[0]["predictableID"] + 1
 
-    id = int(id[0]["_id"]) + 1
-
-    users.insert_one({"_id": id, "username": username, "passwordHash": hash})
+    users.insert_one({"predictableID": id, "username": username, "passwordHash": hash})
 
     return f"{username} successfully created.", 201
