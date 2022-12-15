@@ -26,7 +26,7 @@ def parse_json(data):
 
 
 @app.route("/vulnerable", methods=["POST"])
-def add_message():
+def vulnerable_add_message():
     predictableUserID = request.args.get("predictableUserID")
     message = request.args.get("message")
 
@@ -56,7 +56,7 @@ def add_message():
 
 
 @app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
-def get_message(userID, messageID):
+def vulnerable_get_message(userID, messageID):
     messages = db.messages
     message = messages.find_one(
         {"predictableID": int(messageID), "predictableUserID": int(userID)}
