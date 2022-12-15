@@ -15,20 +15,60 @@ jwt_secret = os.environ.get("JWT_SECRET")
 client = MongoClient(os.environ.get("MONGODB_URI"))
 db = client[os.environ.get("DB_NAME")]
 
-
-@app.route("/vulnerable/<userID>/<messageID>")
-def get_message(userID, messageID):
-    messages = db.messages
-    message = messages.find_one({"_id": messageID})
-
-    return f"{message}"
+# Util
 
 
 def parse_json(data):
     return json.loads(json_util.dumps(data))
 
 
-@app.route("/login", methods=["GET"])
+# Vulnerable Message Requests
+
+
+@app.route("/vulnerable", methods=["POST"])
+def add_message():
+    predictableUserID = request.args.get("predictableUserID")
+    message = request.args.get("message")
+
+    messages = db.messages
+
+    id = (
+        messages.find({"predictableUserID": int(predictableUserID)})
+        .sort("predictableID", -1)
+        .limit(1)
+    )
+
+    items = id.clone()
+    if len(list(items)) > 0:
+        id = id[0]["predictableID"] + 1
+    else:
+        id = 0
+
+    message = messages.insert_one(
+        {
+            "predictableID": id,
+            "predictableUserID": int(predictableUserID),
+            "content": message,
+        }
+    )
+
+    return "Message successfully created.", 201
+
+
+@app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
+def get_message(userID, messageID):
+    messages = db.messages
+    message = messages.find_one(
+        {"predictableID": int(messageID), "predictableUserID": int(userID)}
+    )
+
+    return f"{message}"
+
+
+# Auth
+
+
+@app.route("/login", methods=["POST"])
 def login():
     username = request.args.get("username")
     password = request.args.get("password").encode("utf-8")
@@ -39,9 +79,11 @@ def login():
     if user is None or not bcrypt.checkpw(password, user["passwordHash"]):
         return "Credentials are incorrect", 400
 
-    encoded_jwt = jwt.encode({"_id": parse_json(user["_id"])}, jwt_secret) #_id is object and needs to be parsed
+    encoded_jwt = jwt.encode(
+        {"_id": parse_json(user["_id"])}, jwt_secret
+    )  # _id is object and needs to be parsed
 
-    return f"{encoded_jwt}"
+    return f"{encoded_jwt}", 201
 
 
 @app.route("/register", methods=["POST"])
