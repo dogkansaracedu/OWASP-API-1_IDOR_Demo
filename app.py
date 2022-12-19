@@ -22,6 +22,41 @@ def parse_json(data):
     return json.loads(json_util.dumps(data))
 
 
+# Secure Message Requests
+
+
+@app.route("/", methods=["POST"])
+def add_message():
+    token = request.headers.get("Authorization").split()[1]
+    credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+    message = request.args.get("message")
+
+    messages = db.messages
+
+    messages.insert_one(
+        {
+            "userID": credentials["_id"],
+            "content": message,
+        }
+    )
+
+    return "Message successfully created.", 201
+
+
+@app.route("/<messageID>", methods=["GET"])
+def get_message(messageID):
+    messages = db.messages
+
+    token = request.headers.get("Authorization").split()[1]
+    credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+
+    userID = credentials["_id"]
+    if userID:
+        message = messages.find_one({"_id": messageID, "userID": userID})
+
+    return f"{message}"
+
+
 # Vulnerable Message Requests
 
 
@@ -33,7 +68,7 @@ def vulnerable_add_message():
     messages = db.messages
 
     id = (
-        messages.find({"predictableUserID": int(predictableUserID)})
+        messages.find({"userID": int(predictableUserID)})
         .sort("predictableID", -1)
         .limit(1)
     )
@@ -44,10 +79,10 @@ def vulnerable_add_message():
     else:
         id = 0
 
-    message = messages.insert_one(
+    messages.insert_one(
         {
             "predictableID": id,
-            "predictableUserID": int(predictableUserID),
+            "userID": int(predictableUserID),
             "content": message,
         }
     )
@@ -80,7 +115,7 @@ def login():
         return "Credentials are incorrect", 400
 
     encoded_jwt = jwt.encode(
-        {"_id": parse_json(user["_id"])}, jwt_secret
+        {"_id": parse_json(user["_id"]), "is_admin": user["is_admin"]}, jwt_secret
     )  # _id is object and needs to be parsed
 
     return f"{encoded_jwt}", 201
