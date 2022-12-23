@@ -141,3 +141,34 @@ def register():
     users.insert_one({"predictableID": id, "username": username, "passwordHash": hash})
 
     return f"{username} successfully created.", 201
+
+
+@app.route("/add-dummy-messages", methods=["POST"])
+def addDummyMessages():
+    userID = request.args.get("userID")
+    numOfMessages = int(request.args.get("numberOfMessages"))
+
+    messages = db.messages
+
+    id = (
+        messages.find({"predictableUserID": int(userID)})
+        .sort("predictableID", -1)
+        .limit(1)
+    )
+
+    items = id.clone()
+    if len(list(items)) > 0:
+        id = id[0]["predictableID"] + 1
+    else:
+        id = 0
+
+
+    for i in range(numOfMessages):
+        messages.insert_one(
+        {
+            "predictableID": id,
+            "predictableUserID": int(userID),
+            "content": f"Message {id}",
+        })
+        id += 1
+    return 201
