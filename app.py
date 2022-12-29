@@ -31,6 +31,7 @@ def _get_credentials(auth_header):
 
 _message_successfully_created_response = _get_successful_create_response("Message")
 _user_not_authorized_response = "User is not authorized", 401
+_message_max_length = 1000
 
 
 # Secure Message Requests
@@ -43,8 +44,12 @@ def add_message():
     credentials = _get_credentials(auth_header)
     message = request.args.get("message")
 
-    if message is None or message.strip() == "":
-        return "Please specify a message", 400
+    if (
+        message is None
+        or message.strip() == ""
+        or len(message.strip() > _message_max_length)
+    ):
+        return f"Message length must be 1 to  {_message_max_length}", 400
 
     userID = credentials["id"]
     if userID:
@@ -52,7 +57,7 @@ def add_message():
         messages.insert_one(
             {
                 "userID": credentials["id"],
-                "content": message,
+                "content": message.strip(),
             }
         )
     else:
@@ -63,6 +68,9 @@ def add_message():
 
 @app.route("/<messageID>", methods=["GET"])
 def get_message(messageID: str):
+    if len(messageID) != 24:  # id must be 24 chars hex string
+        return "Message not found", 404
+
     auth_header = request.headers.get("Authorization")
     if auth_header is None:
         return _user_not_authorized_response
@@ -77,7 +85,7 @@ def get_message(messageID: str):
         return _user_not_authorized_response
 
     if message is None:
-        return "Message not found", 400
+        return "Message not found", 404
     return f"{message}"
 
 
