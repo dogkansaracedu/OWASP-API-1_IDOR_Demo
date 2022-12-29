@@ -5,7 +5,7 @@ from pymongo import MongoClient
 import bcrypt
 import jwt
 import json
-from bson import json_util
+from bson import json_util, ObjectId
 
 load_dotenv()
 
@@ -16,67 +16,73 @@ client = MongoClient(os.environ.get("MONGODB_URI"))
 db = client[os.environ.get("DB_NAME")]
 
 # Util
-def get_successful_create_response(object):
+def _get_successful_create_response(object):
     return f"{object} successfully created.", 201
 
 
-def parse_json(data):
+def _parse_json(data):
     return json.loads(json_util.dumps(data))
 
 
-def get_credentials(token: str):
+def _get_credentials(auth_header):
+    token = auth_header.split()[1]
     return jwt.decode(token, jwt_secret, algorithms=["HS256"])
 
 
-user_not_authorized_response = "User is not authorized", 401
-message_successfully_created_response = get_successful_create_response("Message")
+_message_successfully_created_response = _get_successful_create_response("Message")
+_user_not_authorized_response = "User is not authorized", 401
 
 
 # Secure Message Requests
-
-
 @app.route("/", methods=["POST"])
 def add_message():
-    token = request.headers.get("Authorization").split()[1]
-    credentials = get_credentials(token)
+    auth_header = request.headers.get("Authorization")
+    if auth_header is None:
+        return _user_not_authorized_response
+    
+    credentials = _get_credentials(auth_header)
     message = request.args.get("message")
 
-    if message is None or message.strip() is "":
+    if message is None or message.strip() == "":
         return "Please specify a message", 400
 
-    userID = credentials["_id"]
+    userID = credentials["id"]
     if userID:
         messages = db.messages
         messages.insert_one(
             {
-                "userID": credentials["_id"],
+                "userID": credentials["id"],
                 "content": message,
             }
         )
     else:
-        return user_not_authorized_response
+        return _user_not_authorized_response
 
-    return message_successfully_created_response
+    return _message_successfully_created_response
 
 
 @app.route("/<messageID>", methods=["GET"])
 def get_message(messageID: str):
-    token = request.headers.get("Authorization").split()[1]
-    credentials = get_credentials(token)
+    auth_header = request.headers.get("Authorization")
+    if auth_header is None:
+        return _user_not_authorized_response
 
-    userID = credentials["_id"]
+    credentials = _get_credentials(auth_header)
+
+    userID = credentials["id"]
     if userID:
         messages = db.messages
-        message = messages.find_one({"_id": messageID, "userID": userID})
+        print(messageID, userID, credentials)
+        message = messages.find_one({"_id": ObjectId(messageID),"userID": userID})
     else:
-        return user_not_authorized_response
+        return _user_not_authorized_response
 
+    if message is None:
+        return "Message not found", 400
     return f"{message}"
 
 
 # Vulnerable Message Requests
-
-
 @app.route("/vulnerable", methods=["POST"])
 def vulnerable_add_message():
     predictableUserID = request.args.get("predictableUserID")
@@ -104,7 +110,7 @@ def vulnerable_add_message():
         }
     )
 
-    return message_successfully_created_response
+    return _message_successfully_created_response
 
 
 @app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
@@ -118,8 +124,6 @@ def vulnerable_get_message(user_id, messageID):
 
 
 # Auth
-
-
 @app.route("/login", methods=["POST"])
 def login():
     username = request.args.get("username")
@@ -128,11 +132,12 @@ def login():
     users = db.users
     user = users.find_one({"username": username})
 
+    print(user)
     if user is None or not bcrypt.checkpw(password, user["passwordHash"]):
         return "Credentials are incorrect", 400
 
     encoded_jwt = jwt.encode(
-        {"_id": parse_json(user["_id"]), "is_admin": user["is_admin"]}, jwt_secret
+        {"id": _parse_json(user["_id"])["$oid"]}, jwt_secret
     )  # _id is object and needs to be parsed
 
     return f"{encoded_jwt}", 201
@@ -144,7 +149,7 @@ def register():
     password = request.args.get("password").encode("utf-8")
 
     users = db.users
-    user = users.find_one({"username": username})
+    user = users.find_one({"username": username}, None)
 
     if user is not None:
         return "User already exists", 409
