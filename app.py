@@ -39,7 +39,7 @@ def add_message():
     auth_header = request.headers.get("Authorization")
     if auth_header is None:
         return _user_not_authorized_response
-    
+
     credentials = _get_credentials(auth_header)
     message = request.args.get("message")
 
@@ -72,8 +72,7 @@ def get_message(messageID: str):
     userID = credentials["id"]
     if userID:
         messages = db.messages
-        print(messageID, userID, credentials)
-        message = messages.find_one({"_id": ObjectId(messageID),"userID": userID})
+        message = messages.find_one({"_id": ObjectId(messageID), "userID": userID})
     else:
         return _user_not_authorized_response
 
@@ -127,13 +126,16 @@ def vulnerable_get_message(user_id, messageID):
 @app.route("/login", methods=["POST"])
 def login():
     username = request.args.get("username")
-    password = request.args.get("password").encode("utf-8")
+    password = request.args.get("password")
+    if username is None or password is None:
+        return "Please provide your credentials", 400
 
     users = db.users
     user = users.find_one({"username": username})
 
-    print(user)
-    if user is None or not bcrypt.checkpw(password, user["passwordHash"]):
+    if user is None or not bcrypt.checkpw(
+        password.encode("utf-8"), user["passwordHash"]
+    ):
         return "Credentials are incorrect", 400
 
     encoded_jwt = jwt.encode(
@@ -146,18 +148,22 @@ def login():
 @app.route("/register", methods=["POST"])
 def register():
     username = request.args.get("username")
-    password = request.args.get("password").encode("utf-8")
+    password = request.args.get("password")
+
+    if username is None or password is None:
+        return "Please provide your credentials", 400
+
+    if len(password) < 8 or len(password) > 32:
+        return "Password must have 8 to 32 characters", 400
 
     users = db.users
     user = users.find_one({"username": username}, None)
 
     if user is not None:
         return "User already exists", 409
-    if password is None or len(password) < 8 or len(password) > 32:
-        return "Password must have 8 to 32 characters", 400
 
     salt = bcrypt.gensalt()
-    hash = bcrypt.hashpw(password, salt)
+    hash = bcrypt.hashpw(password.encode("utf-8"), salt)
 
     id = users.find().sort("predictableID", -1).limit(1)
     id = id[0]["predictableID"] + 1
