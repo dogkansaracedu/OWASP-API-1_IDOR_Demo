@@ -148,6 +148,8 @@ def register():
 
     if user is not None:
         return "User already exists", 409
+    if password is None or len(password) < 8 or len(password) > 32:
+        return "Password must have 8 to 32 characters", 400
 
     salt = bcrypt.gensalt()
     hash = bcrypt.hashpw(password, salt)
