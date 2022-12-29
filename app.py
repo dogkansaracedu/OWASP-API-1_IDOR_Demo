@@ -31,6 +31,9 @@ def add_message():
     credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
     message = request.args.get("message")
 
+    if message is None or message.strip() is "":
+        return "Please specify a message", 400
+
     userID = credentials["_id"]
     if userID:
         messages = db.messages
@@ -40,6 +43,8 @@ def add_message():
                 "content": message,
             }
         )
+    else:
+        return "User is not authorized", 401
 
     return "Message successfully created.", 201
 
@@ -53,6 +58,8 @@ def get_message(messageID: str):
     if userID:
         messages = db.messages
         message = messages.find_one({"_id": messageID, "userID": userID})
+    else:
+        return "User is not authorized", 401
 
     return f"{message}"
 
