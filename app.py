@@ -31,27 +31,27 @@ def add_message():
     credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
     message = request.args.get("message")
 
-    messages = db.messages
-
-    messages.insert_one(
-        {
-            "userID": credentials["_id"],
-            "content": message,
-        }
-    )
+    userID = credentials["_id"]
+    if userID:
+        messages = db.messages
+        messages.insert_one(
+            {
+                "userID": credentials["_id"],
+                "content": message,
+            }
+        )
 
     return "Message successfully created.", 201
 
 
 @app.route("/<messageID>", methods=["GET"])
-def get_message(messageID):
-    messages = db.messages
-
+def get_message(messageID: str):
     token = request.headers.get("Authorization").split()[1]
     credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
 
     userID = credentials["_id"]
     if userID:
+        messages = db.messages
         message = messages.find_one({"_id": messageID, "userID": userID})
 
     return f"{message}"
@@ -91,10 +91,10 @@ def vulnerable_add_message():
 
 
 @app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
-def vulnerable_get_message(userID, messageID):
+def vulnerable_get_message(user_id, messageID):
     messages = db.messages
     message = messages.find_one(
-        {"predictableID": int(messageID), "predictableUserID": int(userID)}
+        {"predictableID": int(messageID), "predictableUserID": int(user_id)}
     )
 
     return f"{message}"
@@ -162,13 +162,13 @@ def addDummyMessages():
     else:
         id = 0
 
-
     for i in range(numOfMessages):
         messages.insert_one(
-        {
-            "predictableID": id,
-            "predictableUserID": int(userID),
-            "content": f"Message {id}",
-        })
+            {
+                "predictableID": id,
+                "predictableUserID": int(userID),
+                "content": f"Message {id}",
+            }
+        )
         id += 1
     return 201
