@@ -16,10 +16,20 @@ client = MongoClient(os.environ.get("MONGODB_URI"))
 db = client[os.environ.get("DB_NAME")]
 
 # Util
+def get_successful_create_response(object):
+    return f"{object} successfully created.", 201
 
 
 def parse_json(data):
     return json.loads(json_util.dumps(data))
+
+
+def get_credentials(token: str):
+    return jwt.decode(token, jwt_secret, algorithms=["HS256"])
+
+
+user_not_authorized_response = "User is not authorized", 401
+message_successfully_created_response = get_successful_create_response("Message")
 
 
 # Secure Message Requests
@@ -28,7 +38,7 @@ def parse_json(data):
 @app.route("/", methods=["POST"])
 def add_message():
     token = request.headers.get("Authorization").split()[1]
-    credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+    credentials = get_credentials(token)
     message = request.args.get("message")
 
     if message is None or message.strip() is "":
@@ -44,22 +54,22 @@ def add_message():
             }
         )
     else:
-        return "User is not authorized", 401
+        return user_not_authorized_response
 
-    return "Message successfully created.", 201
+    return message_successfully_created_response
 
 
 @app.route("/<messageID>", methods=["GET"])
 def get_message(messageID: str):
     token = request.headers.get("Authorization").split()[1]
-    credentials = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+    credentials = get_credentials(token)
 
     userID = credentials["_id"]
     if userID:
         messages = db.messages
         message = messages.find_one({"_id": messageID, "userID": userID})
     else:
-        return "User is not authorized", 401
+        return user_not_authorized_response
 
     return f"{message}"
 
@@ -94,7 +104,7 @@ def vulnerable_add_message():
         }
     )
 
-    return "Message successfully created.", 201
+    return message_successfully_created_response
 
 
 @app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
