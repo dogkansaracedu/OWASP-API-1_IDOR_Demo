@@ -28,6 +28,13 @@ def _get_credentials(auth_header):
     token = auth_header.split()[1]
     return jwt.decode(token, jwt_secret, algorithms=["HS256"])
 
+def _get_userID(auth_header):
+    if auth_header is None:
+        return None
+
+    credentials = _get_credentials(auth_header)
+
+    return credentials["id"]
 
 _message_successfully_created_response = _get_successful_create_response("Message")
 _user_not_authorized_response = "User is not authorized", 401
@@ -37,11 +44,6 @@ _message_max_length = 1000
 # Secure Message Requests
 @app.route("/", methods=["POST"])
 def add_message():
-    auth_header = request.headers.get("Authorization")
-    if auth_header is None:
-        return _user_not_authorized_response
-
-    credentials = _get_credentials(auth_header)
     message = request.args.get("message")
 
     if (
@@ -51,12 +53,12 @@ def add_message():
     ):
         return f"Message length must be 1 to  {_message_max_length}", 400
 
-    userID = credentials["id"]
+    userID = _get_userID(request.headers.get("Authorization"))
     if userID:
         messages = db.messages
         messages.insert_one(
             {
-                "userID": credentials["id"],
+                "userID": userID,
                 "content": message.strip(),
             }
         )
@@ -71,13 +73,7 @@ def get_message(messageID: str):
     if len(messageID) != 24:  # id must be 24 chars hex string
         return "Message not found", 404
 
-    auth_header = request.headers.get("Authorization")
-    if auth_header is None:
-        return _user_not_authorized_response
-
-    credentials = _get_credentials(auth_header)
-
-    userID = credentials["id"]
+    userID = _get_userID(request.headers.get("Authorization"))
     if userID:
         messages = db.messages
         message = messages.find_one({"_id": ObjectId(messageID), "userID": userID})
@@ -173,10 +169,10 @@ def register():
     salt = bcrypt.gensalt()
     hash = bcrypt.hashpw(password.encode("utf-8"), salt)
 
-    id = users.find().sort("predictableID", -1).limit(1)
-    id = id[0]["predictableID"] + 1
+    predictableID = users.find().sort("predictableID", -1).limit(1)
+    predictableID = predictableID[0]["predictableID"] + 1
 
-    users.insert_one({"predictableID": id, "username": username, "passwordHash": hash})
+    users.insert_one({"predictableID": predictableID, "username": username, "passwordHash": hash})
 
     return f"{username} successfully created.", 201
 
