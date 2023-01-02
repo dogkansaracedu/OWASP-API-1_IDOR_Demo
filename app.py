@@ -179,13 +179,32 @@ def register():
 
 @app.route("/add-dummy-messages", methods=["POST"])
 def addDummyMessages():
-    userID = request.args.get("userID")
+    predictableUserID = request.args.get("userID")
     numOfMessages = int(request.args.get("numberOfMessages"))
-
+    
     messages = db.messages
+    users = db.users
+
+    user = (
+        users.find_one({"predictableID": int(predictableUserID)})
+    )
+    print(user)
+    if (user == None):
+        username = f"user {predictableUserID}"
+        password = f"password{predictableUserID}"
+
+        salt = bcrypt.gensalt()
+        hash = bcrypt.hashpw(password.encode("utf-8"), salt)
+
+
+        users.insert_one({"predictableID": int(predictableUserID), "username": username, "passwordHash": hash})
+        user = users.find_one({"predictableID": int(predictableUserID)})
+
+    print(user)
+
 
     id = (
-        messages.find({"predictableUserID": int(userID)})
+        messages.find({"predictableUserID": int(predictableUserID)})
         .sort("predictableID", -1)
         .limit(1)
     )
@@ -195,14 +214,15 @@ def addDummyMessages():
         id = id[0]["predictableID"] + 1
     else:
         id = 0
-
+    
     for i in range(numOfMessages):
         messages.insert_one(
             {
+                "userID": user['_id'],
                 "predictableID": id,
-                "predictableUserID": int(userID),
+                "predictableUserID": int(predictableUserID),
                 "content": f"Message {id}",
             }
         )
         id += 1
-    return 201
+    return f"{numOfMessages} messages successfully created.", 201
