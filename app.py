@@ -117,10 +117,10 @@ def vulnerable_add_message():
 
 
 @app.route("/vulnerable/<userID>/<messageID>", methods=["GET"])
-def vulnerable_get_message(userID, messageID):
+def vulnerable_get_message(user_id, messageID):
     messages = db.messages
     message = messages.find_one(
-        {"predictableID": int(messageID), "predictableUserID": int(userID)}
+        {"predictableID": int(messageID), "predictableUserID": int(user_id)}
     )
 
     return f"{message}"
