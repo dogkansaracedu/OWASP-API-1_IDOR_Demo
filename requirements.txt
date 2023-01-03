@@ -2,5 +2,5 @@ Flask==2.0.3
 PyJWT==2.6.0
 pymongo==4.1.1
 python-dotenv==0.21.0
-python_bcrypt==0.3.1
+bcrypt==4.0.1
 dnspython==2.1.0
