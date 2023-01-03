@@ -49,7 +49,7 @@ def add_message():
     if (
         message is None
         or message.strip() == ""
-        or len(message.strip() > _message_max_length)
+        or len(message.strip()) > _message_max_length
     ):
         return f"Message length must be 1 to  {_message_max_length}", 400
 
