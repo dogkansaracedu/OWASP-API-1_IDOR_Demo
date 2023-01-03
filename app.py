@@ -165,7 +165,7 @@ def register():
 
     if user is not None:
         return "User already exists", 409
-
+    
     salt = bcrypt.gensalt()
     hash = bcrypt.hashpw(password.encode("utf-8"), salt)
 
