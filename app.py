@@ -94,7 +94,7 @@ def vulnerable_add_message():
     messages = db.messages
 
     id = (
-        messages.find({"userID": int(predictableUserID)})
+        messages.find({"predictableUserID": int(predictableUserID)})
         .sort("predictableID", -1)
         .limit(1)
     )
@@ -108,7 +108,7 @@ def vulnerable_add_message():
     messages.insert_one(
         {
             "predictableID": id,
-            "userID": int(predictableUserID),
+            "predictableUserID": int(predictableUserID),
             "content": message,
         }
     )
