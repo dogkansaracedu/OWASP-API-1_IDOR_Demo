@@ -181,7 +181,7 @@ def register():
     if user is not None:
         return "User already exists", 409
     
-    #salting the encoded text (ciphertext) for it to be more safe
+    #salting the ciphertext and then hashing it for it to be more safer
     salt = bcrypt.gensalt()
     hash = bcrypt.hashpw(password.encode("utf-8"), salt)
 
@@ -212,7 +212,7 @@ def addDummyMessages():
         username = f"user {predictableUserID}"
         password = f"password{predictableUserID}"
 
-        #salting the cipher text for the user to have a safer password against injection attacks
+        #salting the ciphertext and then hashing it for it to be more safer
         salt = bcrypt.gensalt()
         hash = bcrypt.hashpw(password.encode("utf-8"), salt)
 
